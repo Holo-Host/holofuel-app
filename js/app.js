@@ -5,9 +5,9 @@ import { debounce }				from "debounce";
 import components				from "./components.js";
 import state_manager				from "./state-manager.js";
 import notify					from "./notify.js";
-import { mapState, mapMutations, mapActions }	from 'vuex'
+import { mapState, mapMutations, mapActions }	from 'vuex';
 
-const DEFAULT_WS_PORT				= 3000;
+const DEFAULT_UID				= 1;
 
 Vue.filter('currency', function (value) {
     const amount				= parseFloat( value );
@@ -23,7 +23,9 @@ Vue.filter('currency', function (value) {
 
 (async function(global) {
 
-    const { store, initializeWsConnection }	= await state_manager();
+    const { store,
+	    Envoy,
+	    initializeWsConnection }	= await state_manager();
 
     function snapshot( q ) {
 	const html				= document.querySelector(q).outerHTML;
@@ -89,11 +91,8 @@ Vue.filter('currency', function (value) {
     }
 
     const routeComponents			= {
-	"/:port/": {
+	"/": {
 	    "template": (await import('./home.html')).default,
-	    "created": function () {
-		initializeWsConnection( this.$route.params.port || DEFAULT_WS_PORT );
-	    },
 	    "data": function() {
 		return {
 		    "selectedTab": 0,
@@ -106,9 +105,6 @@ Vue.filter('currency', function (value) {
 		};
 	    },
 	    computed: {
-		port: function () {
-		    return this.$route.params.port;
-		},
 		...mapState([
 		    'whoami',
 		    'ledger',
@@ -235,7 +231,7 @@ Vue.filter('currency', function (value) {
 		]),
 	    },
 	},
-	"/:port/promise": {
+	"/promise": {
 	    "template": (await import('./promise.html')).default,
 	    "data": function() {
 		return {
@@ -247,9 +243,6 @@ Vue.filter('currency', function (value) {
 		};
 	    },
 	    computed: {
-		port: function () {
-		    return this.$route.params.port;
-		},
 		calculated_fee () {
 		    if ( typeof this.amount !== 'string' )
 			return "0.00";
@@ -288,7 +281,7 @@ Vue.filter('currency', function (value) {
 		]),
 	    },
 	},
-	"/:port/request": {
+	"/request": {
 	    "template": (await import('./request.html')).default,
 	    "data": function() {
 		return {
@@ -300,9 +293,6 @@ Vue.filter('currency', function (value) {
 		};
 	    },
 	    computed: {
-		port: function () {
-		    return this.$route.params.port;
-		},
 		...mapState([
 		    'whoami',
 		    'ledger',
@@ -336,16 +326,10 @@ Vue.filter('currency', function (value) {
     };
     console.log( routeComponents );
 
-    store.dispatch('start_auto_fetch');
-
     const routes				= [];
     for (let [ path, component ] of Object.entries( routeComponents )) {
 	routes.push({ path, component });
     }
-    routes.push({
-	path: '/',
-	redirect: '/3000/',
-    });
     console.log( routes );
 
     const router				= new VueRouter({
@@ -360,9 +344,6 @@ Vue.filter('currency', function (value) {
 	data: {
 	},
 	computed: {
-	    port: function () {
-		return this.$route.params.port;
-	    },
 	    ...mapState([
 		'whoami',
 		'ledger',
@@ -372,7 +353,7 @@ Vue.filter('currency', function (value) {
 	},
 	methods: {
 	    relative: function ( path ) {
-		return '/' + ( this.port || DEFAULT_WS_PORT ) + '/' + path.replace(/^\/|\/$/g, '');
+		return '/' + path.replace(/^\/|\/$/g, '');
 	    },
 	    relativeLink: function ( path ) {
 		return '/#' + this.relative( path );
@@ -384,9 +365,16 @@ Vue.filter('currency', function (value) {
 		    message: "Copied text to clipboard",
 		});
 	    },
+	    signOut: function () {
+		Envoy.signOut();
+	    },
 	}
     }).$mount('#app');
 
     global.App					= app;
+
+    await initializeWsConnection();
+
+    store.dispatch('start_auto_fetch');
     
 })(window);

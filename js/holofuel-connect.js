@@ -1,13 +1,19 @@
-import { connect }			from "@holochain/hc-web-client";
+import { Connection }				from "@holo-host/web-sdk";
 
-async function init( wsURL ) {
-    const {call, callZome, close}		= await connect( wsURL );
+console.log("Web SDK init (in holofuel-connect.js) has been loaded");
+const envoy					= new Connection();
+global.SDK_debug				= envoy;
+
+async function init( uid ) {
 
     function mapZomeMethod( method_name ) {
-	const zomeMethod			= callZome( 'test-instance', 'transactions', method_name );
 	return async function ( params ) {
 	    try {
-		const resp			= JSON.parse(await zomeMethod( params || {} ));
+		const resp			= await envoy.zomeCall(
+		    'holofuel', 'transactions', method_name, params || {}
+		);
+
+		console.log("Zome call result:", typeof resp, resp );
 		if ( resp.Ok )
 		    return resp.Ok;
 		else {
@@ -15,7 +21,8 @@ async function init( wsURL ) {
 		    throw Error( resp );
 		}
 	    } catch (err) {
-		return err;
+		// console.log(err);
+		throw err;
 	    }
 	};
     }
@@ -27,11 +34,13 @@ async function init( wsURL ) {
 	'list_requests', 'list_promises', 'list_pending', 'list_transactions',
     ];
     const HoloFuel				= actions.reduce(function(map, method_name) {
-	map[method_name]	= mapZomeMethod( method_name );
+	map[method_name]			= mapZomeMethod( method_name );
 	return map;
     }, {});
 
     return HoloFuel;
 }
+init.envoy			= envoy;
+init.ready			= envoy.ready().then(() => envoy.signIn());
 
 export default init;
