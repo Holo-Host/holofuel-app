@@ -1,7 +1,7 @@
 import { Connection }				from "@holo-host/web-sdk";
 
 console.log("Web SDK init (in holofuel-connect.js) has been loaded");
-const envoy					= new Connection();
+const envoy					= new Connection('chaperone.holo.host');
 global.SDK_debug				= envoy;
 
 async function init( uid ) {
